@@ -1,0 +1,5 @@
+import StatusBadge from '../project/StatusBadge';
+
+export default function MemberTaskList({ tasks, selectedTaskId, onSelectTask }) {
+  return <aside className="member-task-list"><h3>팀원별 과제 목록</h3>{tasks.length ? tasks.map((task) => <button key={task.id} className={task.id === selectedTaskId ? 'selected' : ''} onClick={() => onSelectTask(task.id)}><StatusBadge status={task.status} /><span>{task.title}</span><small>{task.details || '세부내용 없음'}</small></button>) : <p className="muted">이 팀원에게 배정된 과제가 없습니다.</p>}</aside>;
+}
