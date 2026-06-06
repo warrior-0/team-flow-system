@@ -16,6 +16,8 @@ export type Task = {
   details: string;
   assigneeId: string;
   status: TaskStatus;
+  x: number;
+  y: number;
 };
 
 export type Edge = {

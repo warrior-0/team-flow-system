@@ -29,10 +29,8 @@ export default function MemberPage({ projects, initialProjectId = '', initialMem
   const selectedTask = memberTasks.find((task) => task.id === taskId) || null;
   const subgraph = useMemo<{ nodes: Task[]; edges: Edge[] }>(() => {
     if (!project || !selectedTask) return { nodes: [], edges: [] };
-    const memberTaskIds = new Set(memberTasks.map((task) => task.id));
-    const memberEdges = project.edges.filter((edge) => memberTaskIds.has(edge.from) && memberTaskIds.has(edge.to));
-    return getTaskSubgraph(memberTasks, memberEdges, selectedTask.id);
-  }, [project, selectedTask, memberTasks]);
+    return getTaskSubgraph(project.tasks, project.edges, selectedTask.id);
+  }, [project, selectedTask]);
 
   if (!project) return <ProjectPicker projects={projects} onSelectProject={(id) => { setProjectId(id); setMemberId(''); setTaskId(''); }} />;
   if (!member) return <MemberPicker project={project} onBack={() => { setProjectId(''); setMemberId(''); setTaskId(''); }} onSelectMember={(id) => { setMemberId(id); setTaskId(''); }} />;

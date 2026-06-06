@@ -62,7 +62,7 @@ export default function ProjectPage({ project, projects, selectedProjectId, onSe
             <button type="submit">과제 생성</button>
           </form>
         </div>
-        <TaskCanvas project={project} selectedTaskId={selectedTaskId} onSelectTask={setSelectedTaskId} />
+        <TaskCanvas project={project} selectedTaskId={selectedTaskId} onSelectTask={setSelectedTaskId} onMoveTask={(taskId, x, y) => actions.updateTask(project.id, taskId, { x, y })} />
       </div>
       <PropertyPanel project={project} task={selectedTask} onUpdateTask={updateSelectedTask} onDeleteTask={deleteSelectedTask} onAddEdge={(from, to) => actions.addEdge(project.id, from, to)} onDeleteEdge={(edgeId) => actions.deleteEdge(project.id, edgeId)} />
     </section>
