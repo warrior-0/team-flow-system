@@ -13,7 +13,8 @@ export default function FlowNode({ project, task, selected, onSelectTask }: Flow
   return (
     <button className={`flow-node ${selected ? 'selected' : ''}`} onClick={() => onSelectTask(task.id)} style={{ left: task.x, top: task.y }}>
       <StatusBadge status={task.status} />
-      <strong>{createTaskLabel(task, project)}</strong>
+      <strong>{task.title}</strong>
+      <small>{createTaskLabel(task, project)}</small>
     </button>
   );
 }

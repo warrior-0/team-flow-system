@@ -1,4 +1,5 @@
 import type { Edge, Project, Task } from '../../types';
+import { createEdgeBezierPath } from '../../utils/graph';
 import FlowNode from './FlowNode';
 
 const NODE_WIDTH = 220;
@@ -21,15 +22,6 @@ function getCanvasSize(tasks: Task[]) {
   return { width: maxX, height: maxY };
 }
 
-function createBezierPath(from: Task, to: Task): string {
-  const startX = from.x + NODE_WIDTH;
-  const startY = from.y + NODE_HEIGHT / 2;
-  const endX = to.x;
-  const endY = to.y + NODE_HEIGHT / 2;
-  const distance = Math.max(Math.abs(endX - startX) * 0.45, 120);
-  return `M ${startX} ${startY} C ${startX + distance} ${startY}, ${endX - distance} ${endY}, ${endX} ${endY}`;
-}
-
 function FlowEdgeLayer({ nodes, edges }: { nodes: Task[]; edges: Edge[] }) {
   const nodeMap = new Map(nodes.map((node) => [node.id, node]));
   return (
@@ -43,7 +35,7 @@ function FlowEdgeLayer({ nodes, edges }: { nodes: Task[]; edges: Edge[] }) {
         const from = nodeMap.get(edge.from);
         const to = nodeMap.get(edge.to);
         if (!from || !to) return null;
-        return <path key={edge.id} className="flow-edge" d={createBezierPath(from, to)} markerEnd="url(#flow-arrow)" />;
+        return <path key={edge.id} className="flow-edge" d={createEdgeBezierPath(from, to, edge, edges, { nodeWidth: NODE_WIDTH, nodeHeight: NODE_HEIGHT })} markerEnd="url(#flow-arrow)" />;
       })}
     </svg>
   );

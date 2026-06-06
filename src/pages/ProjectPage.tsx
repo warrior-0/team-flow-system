@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import MemberList from '../components/project/MemberList';
 import MemberEditor from '../components/project/MemberEditor';
 import TaskCanvas from '../components/project/TaskCanvas';
@@ -18,8 +18,6 @@ type ProjectPageProps = {
 export default function ProjectPage({ project, projects, selectedProjectId, onSelectProject, actions, onOpenMember }: ProjectPageProps) {
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const [newTaskTitle, setNewTaskTitle] = useState('');
-
-  useEffect(() => setSelectedTaskId(''), [selectedProjectId]);
 
   if (!projects.length) return <div className="empty-card">생성된 프로젝트가 없습니다.</div>;
   if (!project) return <div className="empty-card">프로젝트를 선택하세요.</div>;
@@ -48,7 +46,7 @@ export default function ProjectPage({ project, projects, selectedProjectId, onSe
     <section className="project-layout">
       <aside className="side-panel">
         <label className="field-label">프로젝트 선택</label>
-        <select value={selectedProjectId} onChange={(event) => onSelectProject(event.target.value)}>
+        <select value={selectedProjectId} onChange={(event) => { setSelectedTaskId(''); onSelectProject(event.target.value); }}>
           {projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
         <MemberEditor onAddMember={(member: NewMember) => actions.addMember(project.id, member)} />

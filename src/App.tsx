@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import TopBar from './components/TopBar';
 import HomePage from './pages/HomePage';
 import ProjectPage from './pages/ProjectPage';
@@ -16,13 +16,8 @@ export default function App() {
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [memberRoute, setMemberRoute] = useState({ projectId: '', memberId: '' });
 
-  const selectedProject = useMemo(() => projects.find((project) => project.id === selectedProjectId) || null, [projects, selectedProjectId]);
-
-  useEffect(() => {
-    if (selectedProjectId && !projects.some((project) => project.id === selectedProjectId)) {
-      setSelectedProjectId(projects[0]?.id || '');
-    }
-  }, [projects, selectedProjectId]);
+  const selectedProject = useMemo(() => projects.find((project) => project.id === selectedProjectId) || projects[0] || null, [projects, selectedProjectId]);
+  const activeProjectId = selectedProject?.id || '';
 
   const openProject = (projectId: string) => {
     setSelectedProjectId(projectId);
@@ -39,8 +34,8 @@ export default function App() {
       <TopBar currentPage={page} onNavigate={setPage} />
       <main className="page-shell">
         {page === PAGES.HOME && <HomePage projects={projects} onCreateProject={projectData.addProject} onDeleteProject={projectData.deleteProject} onOpenProject={openProject} />}
-        {page === PAGES.PROJECT && <ProjectPage project={selectedProject} projects={projects} selectedProjectId={selectedProjectId} onSelectProject={setSelectedProjectId} actions={projectData} onOpenMember={openMember} />}
-        {page === PAGES.MEMBER && <MemberPage projects={projects} initialProjectId={memberRoute.projectId} initialMemberId={memberRoute.memberId} />}
+        {page === PAGES.PROJECT && <ProjectPage project={selectedProject} projects={projects} selectedProjectId={activeProjectId} onSelectProject={setSelectedProjectId} actions={projectData} onOpenMember={openMember} />}
+        {page === PAGES.MEMBER && <MemberPage key={`${memberRoute.projectId}:${memberRoute.memberId}`} projects={projects} initialProjectId={memberRoute.projectId} initialMemberId={memberRoute.memberId} />}
       </main>
     </div>
   );

@@ -1,4 +1,5 @@
 import type { Edge, Project, Task } from '../../types';
+import { createEdgeBezierPath } from '../../utils/graph';
 import TaskNode from './TaskNode';
 
 const NODE_WIDTH = 220;
@@ -20,15 +21,6 @@ function getCanvasSize(tasks: Task[]) {
   return { width: maxX, height: maxY };
 }
 
-function createBezierPath(from: Task, to: Task): string {
-  const startX = from.x + NODE_WIDTH;
-  const startY = from.y + NODE_HEIGHT / 2;
-  const endX = to.x;
-  const endY = to.y + NODE_HEIGHT / 2;
-  const distance = Math.max(Math.abs(endX - startX) * 0.45, 120);
-  return `M ${startX} ${startY} C ${startX + distance} ${startY}, ${endX - distance} ${endY}, ${endX} ${endY}`;
-}
-
 function EdgeLayer({ tasks, edges }: { tasks: Task[]; edges: Edge[] }) {
   const taskMap = new Map(tasks.map((task) => [task.id, task]));
   return (
@@ -42,7 +34,7 @@ function EdgeLayer({ tasks, edges }: { tasks: Task[]; edges: Edge[] }) {
         const from = taskMap.get(edge.from);
         const to = taskMap.get(edge.to);
         if (!from || !to) return null;
-        return <path key={edge.id} className="task-edge" d={createBezierPath(from, to)} markerEnd="url(#task-arrow)" />;
+        return <path key={edge.id} className="task-edge" d={createEdgeBezierPath(from, to, edge, edges, { nodeWidth: NODE_WIDTH, nodeHeight: NODE_HEIGHT })} markerEnd="url(#task-arrow)" />;
       })}
     </svg>
   );

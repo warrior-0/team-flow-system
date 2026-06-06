@@ -34,3 +34,72 @@ export function getTaskSubgraph(tasks: Task[], edges: Edge[], selectedTaskId: st
   const visibleIds = new Set(nodes.map((task) => task.id));
   return { nodes, edges: edges.filter((edge) => visibleIds.has(edge.from) && visibleIds.has(edge.to)) };
 }
+
+type EdgePathOptions = {
+  nodeWidth: number;
+  nodeHeight: number;
+};
+
+type Point = {
+  x: number;
+  y: number;
+};
+
+type Port = Point & {
+  directionX: number;
+  directionY: number;
+};
+
+const MIN_CONTROL_DISTANCE = 96;
+const REVERSE_EDGE_OFFSET = 72;
+const BACK_EDGE_OFFSET = 64;
+
+function getCenter(task: Task, nodeWidth: number, nodeHeight: number): Point {
+  return { x: task.x + nodeWidth / 2, y: task.y + nodeHeight / 2 };
+}
+
+function getPorts(from: Task, to: Task, { nodeWidth, nodeHeight }: EdgePathOptions): { start: Port; end: Port } {
+  const fromCenter = getCenter(from, nodeWidth, nodeHeight);
+  const toCenter = getCenter(to, nodeWidth, nodeHeight);
+  const deltaX = toCenter.x - fromCenter.x;
+  const deltaY = toCenter.y - fromCenter.y;
+
+  if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+    const direction = deltaX >= 0 ? 1 : -1;
+    return {
+      start: { x: fromCenter.x + (direction * nodeWidth) / 2, y: fromCenter.y, directionX: direction, directionY: 0 },
+      end: { x: toCenter.x - (direction * nodeWidth) / 2, y: toCenter.y, directionX: -direction, directionY: 0 },
+    };
+  }
+
+  const direction = deltaY >= 0 ? 1 : -1;
+  return {
+    start: { x: fromCenter.x, y: fromCenter.y + (direction * nodeHeight) / 2, directionX: 0, directionY: direction },
+    end: { x: toCenter.x, y: toCenter.y - (direction * nodeHeight) / 2, directionX: 0, directionY: -direction },
+  };
+}
+
+function getBendOffset(edge: Edge, edges: Edge[], from: Task, to: Task): number {
+  const hasReverseEdge = edges.some((item) => item.from === edge.to && item.to === edge.from);
+  if (hasReverseEdge) return edge.from < edge.to ? REVERSE_EDGE_OFFSET : -REVERSE_EDGE_OFFSET;
+
+  const fromCenterX = from.x;
+  const toCenterX = to.x;
+  if (toCenterX < fromCenterX) return from.y <= to.y ? -BACK_EDGE_OFFSET : BACK_EDGE_OFFSET;
+
+  return 0;
+}
+
+export function createEdgeBezierPath(from: Task, to: Task, edge: Edge, edges: Edge[], options: EdgePathOptions): string {
+  const { start, end } = getPorts(from, to, options);
+  const distance = Math.max(Math.hypot(end.x - start.x, end.y - start.y) * 0.38, MIN_CONTROL_DISTANCE);
+  const bendOffset = getBendOffset(edge, edges, from, to);
+  const normalX = -(end.y - start.y) / Math.max(Math.hypot(end.x - start.x, end.y - start.y), 1);
+  const normalY = (end.x - start.x) / Math.max(Math.hypot(end.x - start.x, end.y - start.y), 1);
+  const controlStartX = start.x + start.directionX * distance + normalX * bendOffset;
+  const controlStartY = start.y + start.directionY * distance + normalY * bendOffset;
+  const controlEndX = end.x + end.directionX * distance + normalX * bendOffset;
+  const controlEndY = end.y + end.directionY * distance + normalY * bendOffset;
+
+  return `M ${start.x} ${start.y} C ${controlStartX} ${controlStartY}, ${controlEndX} ${controlEndY}, ${end.x} ${end.y}`;
+}

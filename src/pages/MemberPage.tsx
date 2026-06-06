@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import ProjectPicker from '../components/member/ProjectPicker';
 import MemberPicker from '../components/member/MemberPicker';
 import MemberTaskList from '../components/member/MemberTaskList';
@@ -6,7 +6,7 @@ import MemberProgress from '../components/member/MemberProgress';
 import FlowCanvas from '../components/member/FlowCanvas';
 import type { Edge, Project, Task } from '../types';
 import { getTaskSubgraph } from '../utils/graph';
-import { createTaskLabel, getAssigneeName, getStatusLabel } from '../utils/taskHelpers';
+import { getAssigneeName, getStatusLabel } from '../utils/taskHelpers';
 
 type MemberPageProps = {
   projects: Project[];
@@ -26,7 +26,6 @@ function MemberTaskPropertyPanel({ project, task }: MemberTaskPropertyPanelProps
       <h2>과제 속성창</h2>
       {task ? (
         <div className="task-editor readonly-task-editor">
-          <label>과제 정보<input value={createTaskLabel(task, project)} readOnly /></label>
           <label>제목<input value={task.title} readOnly /></label>
           <label>담당자<input value={getAssigneeName(project, task.assigneeId)} readOnly /></label>
           <label>상태<input value={getStatusLabel(task.status)} readOnly /></label>
@@ -42,11 +41,6 @@ export default function MemberPage({ projects, initialProjectId = '', initialMem
   const [projectId, setProjectId] = useState(initialProjectId);
   const [memberId, setMemberId] = useState(initialMemberId);
   const [taskId, setTaskId] = useState('');
-
-  useEffect(() => {
-    if (initialProjectId) setProjectId(initialProjectId);
-    if (initialMemberId) setMemberId(initialMemberId);
-  }, [initialProjectId, initialMemberId]);
 
   const project = projects.find((item) => item.id === projectId) || null;
   const member = project?.members.find((item) => item.id === memberId) || null;
@@ -68,7 +62,7 @@ export default function MemberPage({ projects, initialProjectId = '', initialMem
       </div>
       <MemberProgress tasks={memberTasks} />
       <div className="member-content">
-        <MemberTaskList project={project} tasks={memberTasks} selectedTaskId={taskId} onSelectTask={setTaskId} />
+        <MemberTaskList tasks={memberTasks} selectedTaskId={taskId} onSelectTask={setTaskId} />
         <FlowCanvas project={project} nodes={subgraph.nodes} edges={subgraph.edges} selectedTaskId={taskId} onSelectTask={setTaskId} />
         <MemberTaskPropertyPanel project={project} task={selectedTask} />
       </div>
