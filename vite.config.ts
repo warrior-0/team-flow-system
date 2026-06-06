@@ -4,5 +4,6 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/team-flow-system/',
   plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
 });
