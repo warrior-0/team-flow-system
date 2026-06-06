@@ -1,12 +1,19 @@
-import type { Task } from '../../types';
+import type { Project, Task } from '../../types';
+import { createTaskLabel } from '../../utils/taskHelpers';
 import StatusBadge from '../project/StatusBadge';
 
 type FlowNodeProps = {
+  project: Project;
   task: Task;
-  index: number;
   selected: boolean;
+  onSelectTask: (taskId: string) => void;
 };
 
-export default function FlowNode({ task, index, selected }: FlowNodeProps) {
-  return <div className={`flow-node ${selected ? 'selected' : ''}`} style={{ gridColumn: (index % 3) + 1 }}><StatusBadge status={task.status} /><strong>{task.title}</strong><p>{task.details || '세부내용 없음'}</p></div>;
+export default function FlowNode({ project, task, selected, onSelectTask }: FlowNodeProps) {
+  return (
+    <button className={`flow-node ${selected ? 'selected' : ''}`} onClick={() => onSelectTask(task.id)} style={{ left: task.x, top: task.y }}>
+      <StatusBadge status={task.status} />
+      <strong>{createTaskLabel(task, project)}</strong>
+    </button>
+  );
 }

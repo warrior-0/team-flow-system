@@ -2,6 +2,19 @@ import type { Dispatch, SetStateAction } from 'react';
 import { createId } from '../utils/id';
 import type { MemberChanges, NewMember, Project, ProjectActions, Task, TaskChanges } from '../types';
 
+const TASK_START_X = 48;
+const TASK_START_Y = 48;
+const TASK_COLUMN_GAP = 260;
+const TASK_ROW_GAP = 190;
+const TASK_COLUMNS = 3;
+
+function getInitialTaskPosition(taskCount: number): Pick<Task, 'x' | 'y'> {
+  return {
+    x: TASK_START_X + (taskCount % TASK_COLUMNS) * TASK_COLUMN_GAP,
+    y: TASK_START_Y + Math.floor(taskCount / TASK_COLUMNS) * TASK_ROW_GAP,
+  };
+}
+
 export function createEmptyProject(name: string): Project {
   return { id: createId('project'), name: name.trim(), members: [], tasks: [], edges: [] };
 }
@@ -34,9 +47,12 @@ export function createProjectActions(setProjects: Dispatch<SetStateAction<Projec
       }));
     },
     addTask(projectId: string, title: string) {
-      const task: Task = { id: createId('task'), title: title.trim(), details: '', assigneeId: '', status: 'todo' };
-      updateProject(projectId, (project) => ({ ...project, tasks: [...project.tasks, task] }));
-      return task.id;
+      const taskId = createId('task');
+      updateProject(projectId, (project) => {
+        const task: Task = { id: taskId, title: title.trim(), details: '', assigneeId: '', status: 'todo', ...getInitialTaskPosition(project.tasks.length) };
+        return { ...project, tasks: [...project.tasks, task] };
+      });
+      return taskId;
     },
     updateTask(projectId: string, taskId: string, changes: TaskChanges) {
       updateProject(projectId, (project) => ({ ...project, tasks: project.tasks.map((task) => (task.id === taskId ? { ...task, ...changes } : task)) }));
