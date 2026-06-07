@@ -18,6 +18,13 @@ type TaskCanvasProps = {
 
 type TaskPosition = Pick<Task, 'id' | 'x' | 'y'>;
 
+type DragPreview = {
+  taskId: string;
+  x: number;
+  y: number;
+  nodeElement: HTMLElement;
+};
+
 type EdgePathCache = {
   edgeSignature: string;
   taskPositions: Map<string, TaskPosition>;
@@ -123,6 +130,8 @@ export default function TaskCanvas({ project, selectedTaskId, onSelectTask, onMo
   const taskPositionsRef = useRef(edgePathCache.taskPositions);
   const edgePathsRef = useRef(edgePathCache.paths);
   const pathElementsRef = useRef(new Map<string, SVGPathElement>());
+  const pendingDragPreviewRef = useRef<DragPreview | null>(null);
+  const dragPreviewAnimationFrameRef = useRef<number | null>(null);
 
   const renderedEdgePathCache = reconcileEdgePathCache(edgePathCache, project.tasks, project.edges);
 
@@ -131,9 +140,12 @@ export default function TaskCanvas({ project, selectedTaskId, onSelectTask, onMo
     edgePathsRef.current = renderedEdgePathCache.paths;
   }, [renderedEdgePathCache]);
 
-  const updateConnectedEdgesForPreview = (taskId: string, x: number, y: number) => {
+  const renderDragPreviewFrame = ({ taskId, x, y, nodeElement }: DragPreview) => {
     const currentTask = taskPositionsRef.current.get(taskId);
     if (!currentTask) return;
+
+    nodeElement.style.left = `${x}px`;
+    nodeElement.style.top = `${y}px`;
 
     const nextTaskPositions = new Map(taskPositionsRef.current);
     nextTaskPositions.set(taskId, { ...currentTask, x, y });
@@ -145,6 +157,25 @@ export default function TaskCanvas({ project, selectedTaskId, onSelectTask, onMo
       pathElementsRef.current.get(edge.id)?.setAttribute('d', nextPath);
     });
   };
+
+  const scheduleDragPreview = (taskId: string, x: number, y: number, nodeElement: HTMLElement) => {
+    pendingDragPreviewRef.current = { taskId, x, y, nodeElement };
+
+    if (dragPreviewAnimationFrameRef.current !== null) return;
+
+    dragPreviewAnimationFrameRef.current = requestAnimationFrame(() => {
+      dragPreviewAnimationFrameRef.current = null;
+      const nextPreview = pendingDragPreviewRef.current;
+      pendingDragPreviewRef.current = null;
+      if (nextPreview) renderDragPreviewFrame(nextPreview);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (dragPreviewAnimationFrameRef.current !== null) cancelAnimationFrame(dragPreviewAnimationFrameRef.current);
+    };
+  }, []);
 
   const commitTaskPosition = (taskId: string, x: number, y: number) => {
     const currentTask = renderedEdgePathCache.taskPositions.get(taskId);
@@ -171,7 +202,7 @@ export default function TaskCanvas({ project, selectedTaskId, onSelectTask, onMo
           index={index}
           selected={task.id === selectedTaskId}
           onSelect={onSelectTask}
-          onPreviewMove={updateConnectedEdgesForPreview}
+          onPreviewMove={scheduleDragPreview}
           onMove={commitTaskPosition}
         />
       ))}
