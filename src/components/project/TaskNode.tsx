@@ -10,6 +10,7 @@ type TaskNodeProps = {
   index: number;
   selected: boolean;
   onSelect: (taskId: string) => void;
+  onPreviewMove: (taskId: string, x: number, y: number) => void;
   onMove: (taskId: string, x: number, y: number) => void;
 };
 
@@ -17,9 +18,11 @@ type DragState = {
   pointerId: number;
   offsetX: number;
   offsetY: number;
+  x: number;
+  y: number;
 };
 
-export default function TaskNode({ task, project, index, selected, onSelect, onMove }: TaskNodeProps) {
+export default function TaskNode({ task, project, index, selected, onSelect, onPreviewMove, onMove }: TaskNodeProps) {
   const dragState = useRef<DragState | null>(null);
 
   const handlePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
@@ -30,6 +33,8 @@ export default function TaskNode({ task, project, index, selected, onSelect, onM
       pointerId: event.pointerId,
       offsetX: event.clientX - canvasRect.left - task.x,
       offsetY: event.clientY - canvasRect.top - task.y,
+      x: task.x,
+      y: task.y,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
     onSelect(task.id);
@@ -42,11 +47,37 @@ export default function TaskNode({ task, project, index, selected, onSelect, onM
     const canvasRect = canvas.getBoundingClientRect();
     const nextX = Math.max(16, event.clientX - canvasRect.left - currentDrag.offsetX);
     const nextY = Math.max(16, event.clientY - canvasRect.top - currentDrag.offsetY);
-    onMove(task.id, Math.round(nextX), Math.round(nextY));
+    const roundedX = Math.round(nextX);
+    const roundedY = Math.round(nextY);
+    currentDrag.x = roundedX;
+    currentDrag.y = roundedY;
+    event.currentTarget.style.left = `${roundedX}px`;
+    event.currentTarget.style.top = `${roundedY}px`;
+    onPreviewMove(task.id, roundedX, roundedY);
   };
 
-  const stopDrag = (event: PointerEvent<HTMLButtonElement>) => {
-    if (dragState.current?.pointerId === event.pointerId) dragState.current = null;
+  const releasePointer = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  const commitDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    const currentDrag = dragState.current;
+    if (!currentDrag || currentDrag.pointerId !== event.pointerId) return;
+
+    dragState.current = null;
+    releasePointer(event);
+    if (currentDrag.x !== task.x || currentDrag.y !== task.y) onMove(task.id, currentDrag.x, currentDrag.y);
+  };
+
+  const cancelDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    const currentDrag = dragState.current;
+    if (!currentDrag || currentDrag.pointerId !== event.pointerId) return;
+
+    dragState.current = null;
+    releasePointer(event);
+    event.currentTarget.style.left = `${task.x}px`;
+    event.currentTarget.style.top = `${task.y}px`;
+    onPreviewMove(task.id, task.x, task.y);
   };
 
   return (
@@ -55,8 +86,8 @@ export default function TaskNode({ task, project, index, selected, onSelect, onM
       onClick={() => onSelect(task.id)}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={stopDrag}
-      onPointerCancel={stopDrag}
+      onPointerUp={commitDrag}
+      onPointerCancel={cancelDrag}
       style={{ left: task.x, top: task.y, animationDelay: `${index * 40}ms` }}
     >
       <StatusBadge status={task.status} />
