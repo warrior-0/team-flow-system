@@ -1,17 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import ProjectPicker from '../components/member/ProjectPicker';
 import MemberPicker from '../components/member/MemberPicker';
 import MemberTaskList from '../components/member/MemberTaskList';
 import MemberProgress from '../components/member/MemberProgress';
 import FlowCanvas from '../components/member/FlowCanvas';
-import type { Edge, Project, Task } from '../types';
+import type { Edge, MemberViewState, Project, Task } from '../types';
 import { getTaskSubgraph } from '../utils/graph';
 import { getAssigneeName, getStatusLabel } from '../utils/taskHelpers';
 
 type MemberPageProps = {
   projects: Project[];
-  initialProjectId?: string;
-  initialMemberId?: string;
+  selection: MemberViewState;
+  onSelectionChange: (selection: MemberViewState) => void;
 };
 
 type MemberTaskPropertyPanelProps = {
@@ -37,33 +37,50 @@ function MemberTaskPropertyPanel({ project, task }: MemberTaskPropertyPanelProps
   );
 }
 
-export default function MemberPage({ projects, initialProjectId = '', initialMemberId = '' }: MemberPageProps) {
-  const [projectId, setProjectId] = useState(initialProjectId);
-  const [memberId, setMemberId] = useState(initialMemberId);
-  const [taskId, setTaskId] = useState('');
-
+export default function MemberPage({ projects, selection, onSelectionChange }: MemberPageProps) {
+  const { projectId, memberId, taskId } = selection;
   const project = projects.find((item) => item.id === projectId) || null;
   const member = project?.members.find((item) => item.id === memberId) || null;
   const memberTasks = useMemo(() => (project ? project.tasks.filter((task) => task.assigneeId === memberId) : []), [project, memberId]);
-  const selectedTask = project?.tasks.find((task) => task.id === taskId) || null;
+  const selectedTask = memberTasks.find((task) => task.id === taskId) || null;
   const subgraph = useMemo<{ nodes: Task[]; edges: Edge[] }>(() => {
     if (!project || !selectedTask) return { nodes: [], edges: [] };
     return getTaskSubgraph(project.tasks, project.edges, selectedTask.id);
   }, [project, selectedTask]);
 
-  if (!project) return <ProjectPicker projects={projects} onSelectProject={(id) => { setProjectId(id); setMemberId(''); setTaskId(''); }} />;
-  if (!member) return <MemberPicker project={project} onBack={() => { setProjectId(''); setMemberId(''); setTaskId(''); }} onSelectMember={(id) => { setMemberId(id); setTaskId(''); }} />;
+  useEffect(() => {
+    if (!project && (projectId || memberId || taskId)) {
+      onSelectionChange({ projectId: '', memberId: '', taskId: '' });
+      return;
+    }
+
+    if (project && !member && (memberId || taskId)) {
+      onSelectionChange({ projectId: project.id, memberId: '', taskId: '' });
+      return;
+    }
+
+    if (project && member && taskId && !selectedTask) {
+      onSelectionChange({ projectId: project.id, memberId: member.id, taskId: '' });
+    }
+  }, [member, memberId, onSelectionChange, project, projectId, selectedTask, taskId]);
+
+  const updateSelection = (changes: Partial<MemberViewState>) => {
+    onSelectionChange({ projectId, memberId, taskId, ...changes });
+  };
+
+  if (!project) return <ProjectPicker projects={projects} onSelectProject={(id) => onSelectionChange({ projectId: id, memberId: '', taskId: '' })} />;
+  if (!member) return <MemberPicker project={project} onBack={() => onSelectionChange({ projectId: '', memberId: '', taskId: '' })} onSelectMember={(id) => onSelectionChange({ projectId: project.id, memberId: id, taskId: '' })} />;
 
   return (
     <section className="member-layout">
       <div className="section-header">
         <div><p className="eyebrow">Member Flow</p><h2>{project.name} · {member.name}</h2></div>
-        <div className="button-row"><button onClick={() => { setProjectId(''); setMemberId(''); setTaskId(''); }}>프로젝트 선택으로</button><button onClick={() => { setMemberId(''); setTaskId(''); }}>팀원 선택으로</button></div>
+        <div className="button-row"><button onClick={() => onSelectionChange({ projectId: '', memberId: '', taskId: '' })}>프로젝트 선택으로</button><button onClick={() => updateSelection({ memberId: '', taskId: '' })}>팀원 선택으로</button></div>
       </div>
       <MemberProgress tasks={memberTasks} />
       <div className="member-content">
-        <MemberTaskList tasks={memberTasks} selectedTaskId={taskId} onSelectTask={setTaskId} />
-        <FlowCanvas project={project} nodes={subgraph.nodes} edges={subgraph.edges} selectedTaskId={taskId} onSelectTask={setTaskId} />
+        <MemberTaskList tasks={memberTasks} selectedTaskId={taskId} onSelectTask={(id) => updateSelection({ taskId: id })} />
+        <FlowCanvas project={project} nodes={subgraph.nodes} edges={subgraph.edges} selectedTaskId={taskId} onSelectTask={(id) => updateSelection({ taskId: id })} />
         <MemberTaskPropertyPanel project={project} task={selectedTask} />
       </div>
     </section>
