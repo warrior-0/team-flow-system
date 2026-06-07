@@ -42,7 +42,7 @@ export default function MemberPage({ projects, selection, onSelectionChange }: M
   const project = projects.find((item) => item.id === projectId) || null;
   const member = project?.members.find((item) => item.id === memberId) || null;
   const memberTasks = useMemo(() => (project ? project.tasks.filter((task) => task.assigneeId === memberId) : []), [project, memberId]);
-  const selectedTask = memberTasks.find((task) => task.id === taskId) || null;
+  const selectedTask = project?.tasks.find((task) => task.id === taskId) || null;
   const subgraph = useMemo<{ nodes: Task[]; edges: Edge[] }>(() => {
     if (!project || !selectedTask) return { nodes: [], edges: [] };
     return getTaskSubgraph(project.tasks, project.edges, selectedTask.id);
