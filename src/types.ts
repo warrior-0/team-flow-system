@@ -52,3 +52,9 @@ export type ProjectActions = {
 };
 
 export type ProjectData = { projects: Project[] } & ProjectActions;
+
+export type MemberViewState = {
+  projectId: string;
+  memberId: string;
+  taskId: string;
+};
