@@ -10,7 +10,7 @@ type TaskNodeProps = {
   index: number;
   selected: boolean;
   onSelect: (taskId: string) => void;
-  onPreviewMove: (taskId: string, x: number, y: number) => void;
+  onPreviewMove: (taskId: string, x: number, y: number, nodeElement: HTMLElement) => void;
   onMove: (taskId: string, x: number, y: number) => void;
 };
 
@@ -37,7 +37,6 @@ export default function TaskNode({ task, project, index, selected, onSelect, onP
       y: task.y,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
-    onSelect(task.id);
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
@@ -51,9 +50,7 @@ export default function TaskNode({ task, project, index, selected, onSelect, onP
     const roundedY = Math.round(nextY);
     currentDrag.x = roundedX;
     currentDrag.y = roundedY;
-    event.currentTarget.style.left = `${roundedX}px`;
-    event.currentTarget.style.top = `${roundedY}px`;
-    onPreviewMove(task.id, roundedX, roundedY);
+    onPreviewMove(task.id, roundedX, roundedY, event.currentTarget);
   };
 
   const releasePointer = (event: PointerEvent<HTMLButtonElement>) => {
@@ -66,6 +63,7 @@ export default function TaskNode({ task, project, index, selected, onSelect, onP
 
     dragState.current = null;
     releasePointer(event);
+    onSelect(task.id);
     if (currentDrag.x !== task.x || currentDrag.y !== task.y) onMove(task.id, currentDrag.x, currentDrag.y);
   };
 
@@ -75,9 +73,7 @@ export default function TaskNode({ task, project, index, selected, onSelect, onP
 
     dragState.current = null;
     releasePointer(event);
-    event.currentTarget.style.left = `${task.x}px`;
-    event.currentTarget.style.top = `${task.y}px`;
-    onPreviewMove(task.id, task.x, task.y);
+    onPreviewMove(task.id, task.x, task.y, event.currentTarget);
   };
 
   return (
