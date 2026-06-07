@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { Edge, Project, Task } from '../../types';
 import { createEdgeBezierPath } from '../../utils/graph';
 import TaskNode from './TaskNode';
@@ -15,14 +16,80 @@ type TaskCanvasProps = {
   onMoveTask: (taskId: string, x: number, y: number) => void;
 };
 
+type TaskPosition = Pick<Task, 'id' | 'x' | 'y'>;
+
+type EdgePathCache = {
+  edgeSignature: string;
+  taskPositions: Map<string, TaskPosition>;
+  paths: Map<string, string>;
+};
+
 function getCanvasSize(tasks: Task[]) {
   const maxX = tasks.reduce((max, task) => Math.max(max, task.x + NODE_WIDTH + CANVAS_PADDING), CANVAS_MIN_WIDTH);
   const maxY = tasks.reduce((max, task) => Math.max(max, task.y + NODE_HEIGHT + CANVAS_PADDING), CANVAS_MIN_HEIGHT);
   return { width: maxX, height: maxY };
 }
 
-function EdgeLayer({ tasks, edges }: { tasks: Task[]; edges: Edge[] }) {
-  const taskMap = new Map(tasks.map((task) => [task.id, task]));
+function cloneTaskPosition(task: TaskPosition): TaskPosition {
+  return { id: task.id, x: task.x, y: task.y };
+}
+
+function createTaskPositionMap(tasks: TaskPosition[]) {
+  return new Map(tasks.map((task) => [task.id, cloneTaskPosition(task)]));
+}
+
+function getEdgeSignature(edges: Edge[]) {
+  return edges.map((edge) => `${edge.id}:${edge.from}:${edge.to}`).join('|');
+}
+
+function findMovedTaskIds(previousPositions: Map<string, TaskPosition>, tasks: TaskPosition[]) {
+  return tasks.reduce<string[]>((movedIds, task) => {
+    const previous = previousPositions.get(task.id);
+    if (!previous || previous.x !== task.x || previous.y !== task.y) movedIds.push(task.id);
+    return movedIds;
+  }, []);
+}
+
+function getConnectedEdges(edges: Edge[], taskIds: Iterable<string>) {
+  const movedTaskIds = new Set(taskIds);
+  return edges.filter((edge) => movedTaskIds.has(edge.from) || movedTaskIds.has(edge.to));
+}
+
+function createEdgePath(edge: Edge, edges: Edge[], taskPositions: Map<string, TaskPosition>) {
+  const from = taskPositions.get(edge.from);
+  const to = taskPositions.get(edge.to);
+  if (!from || !to) return '';
+  return createEdgeBezierPath(from as Task, to as Task, edge, edges, { nodeWidth: NODE_WIDTH, nodeHeight: NODE_HEIGHT });
+}
+
+function createFullEdgePathCache(tasks: TaskPosition[], edges: Edge[]): EdgePathCache {
+  const taskPositions = createTaskPositionMap(tasks);
+  return {
+    edgeSignature: getEdgeSignature(edges),
+    taskPositions,
+    paths: new Map(edges.map((edge) => [edge.id, createEdgePath(edge, edges, taskPositions)])),
+  };
+}
+
+function recalculateConnectedEdgePaths(cache: EdgePathCache, edges: Edge[], nextTaskPositions: Map<string, TaskPosition>, movedTaskIds: string[]): EdgePathCache {
+  const nextPaths = new Map(cache.paths);
+  getConnectedEdges(edges, movedTaskIds).forEach((edge) => {
+    nextPaths.set(edge.id, createEdgePath(edge, edges, nextTaskPositions));
+  });
+  return { edgeSignature: getEdgeSignature(edges), taskPositions: nextTaskPositions, paths: nextPaths };
+}
+
+function reconcileEdgePathCache(cache: EdgePathCache, tasks: Task[], edges: Edge[]) {
+  const nextEdgeSignature = getEdgeSignature(edges);
+  if (cache.edgeSignature !== nextEdgeSignature) return createFullEdgePathCache(tasks, edges);
+
+  const movedTaskIds = findMovedTaskIds(cache.taskPositions, tasks);
+  if (!movedTaskIds.length) return cache;
+
+  return recalculateConnectedEdgePaths(cache, edges, createTaskPositionMap(tasks), movedTaskIds);
+}
+
+function EdgeLayer({ edges, edgePaths, pathElementsRef }: { edges: Edge[]; edgePaths: Map<string, string>; pathElementsRef: React.RefObject<Map<string, SVGPathElement>> }) {
   return (
     <svg className="task-edge-layer" aria-label="과제 의존성 그래프">
       <defs>
@@ -31,10 +98,20 @@ function EdgeLayer({ tasks, edges }: { tasks: Task[]; edges: Edge[] }) {
         </marker>
       </defs>
       {edges.map((edge) => {
-        const from = taskMap.get(edge.from);
-        const to = taskMap.get(edge.to);
-        if (!from || !to) return null;
-        return <path key={edge.id} className="task-edge" d={createEdgeBezierPath(from, to, edge, edges, { nodeWidth: NODE_WIDTH, nodeHeight: NODE_HEIGHT })} markerEnd="url(#task-arrow)" />;
+        const path = edgePaths.get(edge.id);
+        if (!path) return null;
+        return (
+          <path
+            key={edge.id}
+            ref={(element) => {
+              if (element) pathElementsRef.current.set(edge.id, element);
+              else pathElementsRef.current.delete(edge.id);
+            }}
+            className="task-edge"
+            d={path}
+            markerEnd="url(#task-arrow)"
+          />
+        );
       })}
     </svg>
   );
@@ -42,6 +119,42 @@ function EdgeLayer({ tasks, edges }: { tasks: Task[]; edges: Edge[] }) {
 
 export default function TaskCanvas({ project, selectedTaskId, onSelectTask, onMoveTask }: TaskCanvasProps) {
   const canvasSize = getCanvasSize(project.tasks);
+  const [edgePathCache, setEdgePathCache] = useState(() => createFullEdgePathCache(project.tasks, project.edges));
+  const taskPositionsRef = useRef(edgePathCache.taskPositions);
+  const edgePathsRef = useRef(edgePathCache.paths);
+  const pathElementsRef = useRef(new Map<string, SVGPathElement>());
+
+  const renderedEdgePathCache = reconcileEdgePathCache(edgePathCache, project.tasks, project.edges);
+
+  useEffect(() => {
+    taskPositionsRef.current = renderedEdgePathCache.taskPositions;
+    edgePathsRef.current = renderedEdgePathCache.paths;
+  }, [renderedEdgePathCache]);
+
+  const updateConnectedEdgesForPreview = (taskId: string, x: number, y: number) => {
+    const currentTask = taskPositionsRef.current.get(taskId);
+    if (!currentTask) return;
+
+    const nextTaskPositions = new Map(taskPositionsRef.current);
+    nextTaskPositions.set(taskId, { ...currentTask, x, y });
+    taskPositionsRef.current = nextTaskPositions;
+
+    getConnectedEdges(project.edges, [taskId]).forEach((edge) => {
+      const nextPath = createEdgePath(edge, project.edges, nextTaskPositions);
+      edgePathsRef.current.set(edge.id, nextPath);
+      pathElementsRef.current.get(edge.id)?.setAttribute('d', nextPath);
+    });
+  };
+
+  const commitTaskPosition = (taskId: string, x: number, y: number) => {
+    const currentTask = renderedEdgePathCache.taskPositions.get(taskId);
+    if (!currentTask) return;
+
+    const nextTaskPositions = new Map(renderedEdgePathCache.taskPositions);
+    nextTaskPositions.set(taskId, { ...currentTask, x, y });
+    setEdgePathCache(recalculateConnectedEdgePaths(renderedEdgePathCache, project.edges, nextTaskPositions, [taskId]));
+    onMoveTask(taskId, x, y);
+  };
 
   if (!project.tasks.length) {
     return <div className="task-canvas empty-task-canvas"><p className="muted">과제를 생성하면 TODO 상태로 여기에 표시됩니다.</p></div>;
@@ -49,9 +162,18 @@ export default function TaskCanvas({ project, selectedTaskId, onSelectTask, onMo
 
   return (
     <div className="task-canvas" style={{ minWidth: canvasSize.width, minHeight: canvasSize.height }}>
-      <EdgeLayer tasks={project.tasks} edges={project.edges} />
+      <EdgeLayer edges={project.edges} edgePaths={renderedEdgePathCache.paths} pathElementsRef={pathElementsRef} />
       {project.tasks.map((task, index) => (
-        <TaskNode key={task.id} task={task} project={project} index={index} selected={task.id === selectedTaskId} onSelect={onSelectTask} onMove={onMoveTask} />
+        <TaskNode
+          key={task.id}
+          task={task}
+          project={project}
+          index={index}
+          selected={task.id === selectedTaskId}
+          onSelect={onSelectTask}
+          onPreviewMove={updateConnectedEdgesForPreview}
+          onMove={commitTaskPosition}
+        />
       ))}
     </div>
   );
