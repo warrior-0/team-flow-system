@@ -79,23 +79,29 @@ function getPorts(from: Task, to: Task, { nodeWidth, nodeHeight }: EdgePathOptio
   };
 }
 
-function getBendOffset(edge: Edge, edges: Edge[], from: Task, to: Task): number {
+function getBendOffset(edge: Edge, edges: Edge[]): number {
   const hasReverseEdge = edges.some((item) => item.from === edge.to && item.to === edge.from);
-  if (hasReverseEdge) return edge.from < edge.to ? REVERSE_EDGE_OFFSET : -REVERSE_EDGE_OFFSET;
+  
+  // 양방향 엣지가 있는 경우에만 오프셋을 적용하여 서로 겹치지 않게 함
+  if (hasReverseEdge) {
+    // a -> b 와 b -> a 에 대해 일관된 방향성을 주기 위해 ID 값을 비교
+    return edge.from < edge.to ? REVERSE_EDGE_OFFSET : -REVERSE_EDGE_OFFSET;
+  }
 
-  const fromCenterX = from.x;
-  const toCenterX = to.x;
-  if (toCenterX < fromCenterX) return from.y <= to.y ? -BACK_EDGE_OFFSET : BACK_EDGE_OFFSET;
-
+  // 그 외(단방향 또는 타겟이 왼쪽에 있는 경우 등)에는 오프셋을 주지 않음
   return 0;
 }
 
 export function createEdgeBezierPath(from: Task, to: Task, edge: Edge, edges: Edge[], options: EdgePathOptions): string {
   const { start, end } = getPorts(from, to, options);
   const distance = Math.max(Math.hypot(end.x - start.x, end.y - start.y) * 0.38, MIN_CONTROL_DISTANCE);
-  const bendOffset = getBendOffset(edge, edges, from, to);
+  
+  // 수정된 getBendOffset 호출 (불필요한 인자 from, to 제거)
+  const bendOffset = getBendOffset(edge, edges);
+  
   const normalX = -(end.y - start.y) / Math.max(Math.hypot(end.x - start.x, end.y - start.y), 1);
   const normalY = (end.x - start.x) / Math.max(Math.hypot(end.x - start.x, end.y - start.y), 1);
+  
   const controlStartX = start.x + start.directionX * distance + normalX * bendOffset;
   const controlStartY = start.y + start.directionY * distance + normalY * bendOffset;
   const controlEndX = end.x + end.directionX * distance + normalX * bendOffset;
