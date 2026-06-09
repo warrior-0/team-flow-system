@@ -9,6 +9,7 @@ const tabs: { id: PageId; label: string }[] = [
   { id: 'home', label: 'Home' },
   { id: 'project', label: 'Project' },
   { id: 'member', label: 'Member' },
+  { id: 'checklist', label: 'Checklist' },
 ];
 
 export default function TopBar({ currentPage, onNavigate }: TopBarProps) {

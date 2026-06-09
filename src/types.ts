@@ -1,4 +1,4 @@
-export const PAGE_IDS = ['home', 'project', 'member'] as const;
+export const PAGE_IDS = ['home', 'project', 'member', 'checklist'] as const;
 export type PageId = (typeof PAGE_IDS)[number];
 
 export const TASK_STATUSES = ['todo', 'doing', 'done'] as const;
@@ -10,6 +10,12 @@ export type Member = {
   role: string;
 };
 
+export type ChecklistItem = {
+  id: string;
+  content: string;
+  done: boolean;
+};
+
 export type Task = {
   id: string;
   title: string;
@@ -18,6 +24,7 @@ export type Task = {
   status: TaskStatus;
   x: number;
   y: number;
+  checklist: ChecklistItem[];
 };
 
 export type Edge = {
@@ -49,6 +56,9 @@ export type ProjectActions = {
   deleteTask(projectId: string, taskId: string): void;
   addEdge(projectId: string, from: string, to: string): void;
   deleteEdge(projectId: string, edgeId: string): void;
+  addChecklistItem(projectId: string, taskId: string, content: string): void;
+  toggleChecklistItem(projectId: string, taskId: string, itemId: string): void;
+  deleteChecklistItem(projectId: string, taskId: string, itemId: string): void;
 };
 
 export type ProjectData = { projects: Project[] } & ProjectActions;

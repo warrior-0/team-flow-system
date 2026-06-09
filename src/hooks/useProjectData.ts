@@ -9,13 +9,14 @@ const TASK_COLUMN_GAP = 260;
 const TASK_ROW_GAP = 190;
 const TASK_COLUMNS = 3;
 
-type StoredTask = Task | (Omit<Task, 'x' | 'y'> & Partial<Pick<Task, 'x' | 'y'>>);
+type StoredTask = Task | (Omit<Task, 'x' | 'y' | 'checklist'> & Partial<Pick<Task, 'x' | 'y' | 'checklist'>>);
 
 function normalizeTask(task: StoredTask, index: number): Task {
   return {
     ...task,
     x: typeof task.x === 'number' ? task.x : TASK_START_X + (index % TASK_COLUMNS) * TASK_COLUMN_GAP,
     y: typeof task.y === 'number' ? task.y : TASK_START_Y + Math.floor(index / TASK_COLUMNS) * TASK_ROW_GAP,
+    checklist: Array.isArray(task.checklist) ? task.checklist : [],
   };
 }
 

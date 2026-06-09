@@ -49,7 +49,7 @@ export function createProjectActions(setProjects: Dispatch<SetStateAction<Projec
     addTask(projectId: string, title: string) {
       const taskId = createId('task');
       updateProject(projectId, (project) => {
-        const task: Task = { id: taskId, title: title.trim(), details: '', assigneeId: '', status: 'todo', ...getInitialTaskPosition(project.tasks.length) };
+        const task: Task = { id: taskId, title: title.trim(), details: '', assigneeId: '', status: 'todo', checklist: [], ...getInitialTaskPosition(project.tasks.length) };
         return { ...project, tasks: [...project.tasks, task] };
       });
       return taskId;
@@ -73,6 +73,39 @@ export function createProjectActions(setProjects: Dispatch<SetStateAction<Projec
     },
     deleteEdge(projectId: string, edgeId: string) {
       updateProject(projectId, (project) => ({ ...project, edges: project.edges.filter((edge) => edge.id !== edgeId) }));
+    },
+    addChecklistItem(projectId: string, taskId: string, content: string) {
+      const trimmedContent = content.trim();
+      if (!trimmedContent) return;
+
+      updateProject(projectId, (project) => ({
+        ...project,
+        tasks: project.tasks.map((task) => (
+          task.id === taskId
+            ? { ...task, checklist: [...task.checklist, { id: createId('checklist'), content: trimmedContent, done: false }] }
+            : task
+        )),
+      }));
+    },
+    toggleChecklistItem(projectId: string, taskId: string, itemId: string) {
+      updateProject(projectId, (project) => ({
+        ...project,
+        tasks: project.tasks.map((task) => (
+          task.id === taskId
+            ? { ...task, checklist: task.checklist.map((item) => (item.id === itemId ? { ...item, done: !item.done } : item)) }
+            : task
+        )),
+      }));
+    },
+    deleteChecklistItem(projectId: string, taskId: string, itemId: string) {
+      updateProject(projectId, (project) => ({
+        ...project,
+        tasks: project.tasks.map((task) => (
+          task.id === taskId
+            ? { ...task, checklist: task.checklist.filter((item) => item.id !== itemId) }
+            : task
+        )),
+      }));
     },
   };
 }
